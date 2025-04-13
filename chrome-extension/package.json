@@ -10,7 +10,7 @@
     "clean:turbo": "rimraf .turbo",
     "clean": "pnpm clean:turbo && pnpm clean:node_modules",
     "ready": "tsc -b pre-build.tsconfig.json",
-    "build": "vite build",
+    "build": "rm -f manifest.js && pnpm exec tsc --project pre-build.tsconfig.json && vite build",
     "dev": "vite build --mode development",
     "test": "vitest run",
     "lint": "eslint .",
