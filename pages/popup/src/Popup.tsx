@@ -37,9 +37,9 @@ const LinkItem: React.FC<LinkItemProps> = ({ link, onDelete }) => {
   }, [generatedUrl]);
 
   const handleShare = useCallback(() => {
-    const text = `"${link.quote}" (Zennより引用)`; // 共有テキスト (タイトル/著者がないため引用文のみ)
-    const shareUrl = `https://twitter.com/inte
-    nt/tweet?url=${encodeURIComponent(generatedUrl)}&text=${encodeURIComponent(text)}`;
+    const text = `"${link.quote}"`; // 共有テキスト (タイトル/著者がないため引用文のみ)
+    // ★★★ URL 文字列の改行を削除 ★★★
+    const shareUrl = `https://twitter.com/intent/tweet?url=${encodeURIComponent(generatedUrl)}&text=${encodeURIComponent(text)}`;
     chrome.tabs.create({ url: shareUrl });
   }, [generatedUrl, link.quote]);
 
