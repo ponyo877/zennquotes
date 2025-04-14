@@ -12,8 +12,7 @@ interface StoredQuoteLink {
 
 // 定数
 const STORAGE_KEY = 'quoteLinks';
-// TODO: デプロイした Cloudflare Worker のドメインを設定する
-const WORKER_BASE_URL = 'https://your-zennquotes-worker.workers.dev'; // 仮のURL
+const WORKER_BASE_URL = 'https://zennq.folks-chat.com'; // ★★★ デプロイした URL に更新 ★★★
 
 // --- Helper Components ---
 

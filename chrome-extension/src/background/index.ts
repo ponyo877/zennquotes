@@ -10,9 +10,8 @@ interface StoredQuoteLink {
 
 // 定数
 const CONTEXT_MENU_ID = 'createZennQuoteLink';
-// バックエンドAPIのエンドポイント (ローカル開発環境を想定)
-// TODO: 本番環境デプロイ時に変更する
-const API_ENDPOINT = 'http://localhost:8787/api/ogp';
+// バックエンドAPIのエンドポイント
+const API_ENDPOINT = 'https://zennq.folks-chat.com/api/ogp'; // ★★★ デプロイした URL に更新 ★★★
 const STORAGE_KEY = 'quoteLinks';
 
 // 拡張機能インストール時またはアップデート時にコンテキストメニューを作成・更新
@@ -98,7 +97,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 
     // --- ストレージ保存 ---
     const newLink: StoredQuoteLink = {
-      id: crypto.randomUUID(),
+      id: result?.id, // UUID
       quote: selectedText,
       originalUrl: pageUrl, // Text Fragment なしの元URL
       ogpImageUrl: ogpImageUrl,
