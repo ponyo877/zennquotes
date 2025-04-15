@@ -125,10 +125,76 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     await chrome.storage.local.set({ [STORAGE_KEY]: finalLinks });
     console.log('Placeholder replaced with final link in storage.');
 
-    // --- 成功通知 ---
-    chrome.notifications.create({
-      type: 'basic', iconUrl: 'icon-128.png', title: 'ZennQuotes', message: '引用リンクを作成しました！',
-    });
+    // --- 成功通知 & クリップボードコピー (executeScriptでContent Scriptの関数を呼び出す) ---
+    if (tab?.id) {
+      const targetTabId = tab.id;
+      const notificationMessage = 'Zennの引用リンクをコピーしました!';
+      // OGPカードのURLを構築 (API仕様に合わせて変更が必要な場合があります)
+      const quoteLinkUrl = `https://zennq.folks-chat.com/${finalId}`;
+
+      chrome.scripting.executeScript({
+        target: { tabId: targetTabId },
+        func: (message, urlToCopy) => { // urlToCopy 引数を追加
+          // この関数は Content Script のコンテキストで実行される
+          const showNotificationModal = (msg: string): void => {
+            // Remove existing modal if any
+            const existingModal = document.querySelector('.zenn-quotes-notification');
+            if (existingModal) {
+              existingModal.remove();
+            }
+
+            // Create modal element
+            const modal = document.createElement('div');
+            modal.classList.add('zenn-quotes-notification');
+            modal.textContent = msg;
+            document.body.appendChild(modal);
+
+            // Trigger fade-in animation
+            setTimeout(() => {
+              modal.classList.add('show');
+            }, 10); // Small delay
+
+            // Set timeout to fade out and remove the modal
+            setTimeout(() => {
+              modal.classList.remove('show');
+              modal.addEventListener('transitionend', () => {
+                modal.remove();
+              }, { once: true });
+            }, 3000); // Display for 3 seconds
+          };
+
+          // 1. クリップボードにコピー
+          navigator.clipboard.writeText(urlToCopy).then(() => {
+            console.log('Quote link copied to clipboard:', urlToCopy);
+            // コピー成功時はそのままのメッセージでモーダル表示
+            showNotificationModal(message);
+          }).catch(err => {
+            console.error('Failed to copy quote link to clipboard:', err);
+            // コピー失敗時はメッセージを変更してモーダル表示
+            showNotificationModal(`${message} (コピー失敗)`);
+          });
+        },
+        args: [notificationMessage, quoteLinkUrl] // func に渡す引数を修正
+      }).then(() => {
+        console.log('Injected script executed to show notification and copy link.');
+      }).catch((err) => {
+        console.error('Failed to inject script:', err);
+        // フォールバックとしてネイティブ通知を表示する (任意)
+        chrome.notifications.create({
+          type: 'basic', iconUrl: 'icon-128.png', title: 'ZennQuotes', message: '引用リンクを作成しました！ (通知表示エラー)',
+        });
+      });
+
+    } else {
+      console.error('Could not execute script: tab ID not found.');
+      // フォールバックとしてネイティブ通知を表示する (任意)
+      chrome.notifications.create({
+        type: 'basic', iconUrl: 'icon-128.png', title: 'ZennQuotes', message: '引用リンクを作成しました！ (通知表示エラー)',
+      });
+    }
+    // chrome.notifications.create({
+    //   type: 'basic', iconUrl: 'icon-128.png', title: 'ZennQuotes', message: '引用リンクを作成しました！',
+    // });
 
   } catch (error) {
     console.error('Error creating quote link:', error);

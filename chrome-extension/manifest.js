@@ -37,11 +37,13 @@ const manifest = {
     content_scripts: [
         {
             // Zennの記事ページに限定
-            matches: ['https://zenn.dev/*/*/articles/*'],
+            matches: ['https://zenn.dev/*/articles/*'],
             // 実行するスクリプト (src/content/index.ts からビルドされる想定)
             js: ['content/index.iife.js'],
             // 適用するCSS (public/content.css を想定)
             css: ['content.css'],
+            // 実行タイミングをDOM完了時に変更
+            run_at: 'document_end',
         },
     ],
     web_accessible_resources: [

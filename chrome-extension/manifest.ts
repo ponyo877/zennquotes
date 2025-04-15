@@ -44,6 +44,8 @@ const manifest = {
       js: ['content/index.iife.js'],
       // 適用するCSS (public/content.css を想定)
       css: ['content.css'],
+      // 実行タイミングをDOM完了時に変更
+      run_at: 'document_end',
     },
   ],
   web_accessible_resources: [
