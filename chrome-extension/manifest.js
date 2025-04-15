@@ -39,12 +39,10 @@ const manifest = {
             // Zennの記事ページに限定
             matches: ['https://zenn.dev/*/*/articles/*'],
             // 実行するスクリプト (src/content/index.ts からビルドされる想定)
-            // 現在は background で処理しているため、必須ではないが念のため残す
             js: ['content/index.iife.js'],
             // 適用するCSS (public/content.css を想定)
-            css: ['content.css'], // 空ファイルだが読み込み指定は残す
+            css: ['content.css'],
         },
-        // 不要な content-ui スクリプトは削除
     ],
     web_accessible_resources: [
         {
@@ -53,12 +51,5 @@ const manifest = {
             matches: ['https://zenn.dev/*'], // Zennドメインに限定
         },
     ],
-    // 不要な設定は削除
-    // "default_locale": "en",
-    // "browser_specific_settings": { ... },
-    // "options_page": "options/index.html",
-    // "chrome_url_overrides": { ... },
-    // "devtools_page": "devtools/index.html",
-    // "side_panel": { ... },
 };
 export default manifest;
