@@ -3,73 +3,65 @@ import { readFileSync } from 'node:fs';
 const packageJson = JSON.parse(readFileSync('./package.json', 'utf8'));
 
 /**
- * @prop default_locale
- * if you want to support multiple languages, you can use the following reference
- * https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Internationalization
- *
- * @prop browser_specific_settings
- * Must be unique to your extension to upload to addons.mozilla.org
- * (you can delete if you only want a chrome extension)
- *
- * @prop permissions
- * Firefox doesn't support sidePanel (It will be deleted in manifest parser)
- *
- * @prop content_scripts
- * css: ['content.css'], // public folder
+ * ZennQuotes Manifest
  */
 const manifest = {
   manifest_version: 3,
   default_locale: 'en',
-  name: '__MSG_extensionName__',
-  browser_specific_settings: {
-    gecko: {
-      id: 'example@example.com',
-      strict_min_version: '109.0',
-    },
-  },
+  name: 'ZennQuotes', // 拡張機能名
   version: packageJson.version,
-  description: '__MSG_extensionDescription__',
-  host_permissions: ['<all_urls>'],
-  permissions: ['storage', 'scripting', 'tabs', 'notifications', 'sidePanel', "contextMenus"],
-  options_page: 'options/index.html',
+  description: 'Zennの記事から引用文を含むOGPリンクを生成します。', // 拡張機能の説明
+  host_permissions: ['https://zenn.dev/*'], // Zennドメインに限定
+  permissions: [
+    'storage',        // chrome.storage.local を使うため
+    'contextMenus',   // 右クリックメニューを追加するため
+    'notifications',  // 通知を表示するため
+    'activeTab',      // 現在のタブのURLなどを取得するため (scriptingと併用)
+    'scripting',      // content script を実行するため
+  ],
   background: {
-    service_worker: 'background.js',
+    service_worker: 'background.js', // src/background/index.ts からビルドされる想定
     type: 'module',
   },
   action: {
-    default_popup: 'popup/index.html',
-    default_icon: 'icon-34.png',
+    default_popup: 'popup/index.html', // ポップアップ
+    default_icon: {
+      16: 'icon-34.png', // 小さいアイコン (34pxで代用)
+      34: 'icon-34.png',
+      128: 'icon-128.png'
+    },
   },
-  chrome_url_overrides: {
-    newtab: 'new-tab/index.html',
-  },
-  icons: {
+  icons: { // トップレベルのアイコン
+    16: 'icon-34.png',
+    34: 'icon-34.png',
     128: 'icon-128.png',
   },
   content_scripts: [
     {
-      matches: ['http://*/*', 'https://*/*', '<all_urls>'],
+      // Zennの記事ページに限定
+      matches: ['https://zenn.dev/*/*/articles/*'],
+      // 実行するスクリプト (src/content/index.ts からビルドされる想定)
+      // 現在は background で処理しているため、必須ではないが念のため残す
       js: ['content/index.iife.js'],
+      // 適用するCSS (public/content.css を想定)
+      css: ['content.css'], // 空ファイルだが読み込み指定は残す
     },
-    {
-      matches: ['http://*/*', 'https://*/*', '<all_urls>'],
-      js: ['content-ui/index.iife.js'],
-    },
-    {
-      matches: ['http://*/*', 'https://*/*', '<all_urls>'],
-      css: ['content.css'],
-    },
+    // 不要な content-ui スクリプトは削除
   ],
-  devtools_page: 'devtools/index.html',
   web_accessible_resources: [
     {
-      resources: ['*.js', '*.css', '*.svg', 'icon-128.png', 'icon-34.png'],
-      matches: ['*://*/*'],
+      // content script から参照される可能性のあるリソースを指定
+      resources: ['icon-128.png', 'icon-34.png', 'content.css'],
+      matches: ['https://zenn.dev/*'], // Zennドメインに限定
     },
   ],
-  side_panel: {
-    default_path: 'side-panel/index.html',
-  },
+  // 不要な設定は削除
+  // "default_locale": "en",
+  // "browser_specific_settings": { ... },
+  // "options_page": "options/index.html",
+  // "chrome_url_overrides": { ... },
+  // "devtools_page": "devtools/index.html",
+  // "side_panel": { ... },
 } satisfies chrome.runtime.ManifestV3;
 
 export default manifest;
