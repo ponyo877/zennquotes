@@ -17,14 +17,13 @@ const WORKER_BASE_URL = 'https://zennq.folks-chat.com'; // ★★★ デプロ�
 // --- Helper Components ---
 
 // ★★★ SVG アイコンコンポーネント ★★★
-const IconCopy = () => ( // ★★★ コピーアイコン SVG に変更 ★★★
+const IconCopy = () => ( // ★★★ 新しいコピーアイコン SVG に変更 ★★★
   <svg id="emoji" viewBox="0 0 72 72" version="1.1" xmlns="http://www.w3.org/2000/svg" className="w-5 h-5">
     {/* g#color は fill 属性を持つ */}
     <g id="color">
       <rect x="23.8246" y="9.2081" width="32.1283" height="47.7648" fill="#9B9B9A"/>
       <rect x="19.9359" y="13.0968" width="32.1283" height="47.7648" fill="#FFFFFF"/>
     </g>
-    {/* g#hair, g#skin, g#skin-shadow は空なので削除 */}
     {/* g#line は stroke 属性を持つ */}
     <g id="line">
       <polyline fill="none" stroke="#000000" strokeLinecap="round" strokeLinejoin="round" strokeMiterlimit="10" strokeWidth="2" points="52.06,56.9698 55.95,56.9698 55.95,9.2098 23.82,9.2098 23.82,13.0998"/>
@@ -96,13 +95,24 @@ interface LinkItemProps {
   className?: string; // ★★★ className プロパティを追加 (オプショナル) ★★★
 }
 
-const LinkItem: React.FC<LinkItemProps> = ({ link, onDelete, className = '' }) => { // ★★★ className を受け取る ★★★
+const LinkItem: React.FC<LinkItemProps> = ({ link, onDelete, className = '' }) => {
   const generatedUrl = `${WORKER_BASE_URL}/${link.id}`;
+  // ★★★ ツールチップ表示状態管理 ★★★
+  const [showTooltip, setShowTooltip] = useState(false);
 
   const handleCopy = useCallback(() => {
     navigator.clipboard.writeText(generatedUrl)
-      .then(() => alert('リンクをコピーしました！'))
-      .catch(err => console.error('コピー失敗:', err));
+      .then(() => {
+        // ★★★ alert の代わりにツールチップを表示 ★★★
+        setShowTooltip(true);
+        // 1.5秒後にツールチップを非表示にする
+        setTimeout(() => setShowTooltip(false), 1500);
+      })
+      .catch(err => {
+        console.error('コピー失敗:', err);
+        // エラー時にも通知を出す場合 (任意)
+        // alert('コピーに失敗しました。');
+      });
   }, [generatedUrl]);
 
   const handleShare = useCallback(() => {
@@ -143,8 +153,17 @@ const LinkItem: React.FC<LinkItemProps> = ({ link, onDelete, className = '' }) =
           {link.originalUrl.replace('https://', '')}
         </a> */}
         {/* ★★★ アクションボタン (スタイル改善) ★★★ */}
-        <div className="flex space-x-2 mt-2">
-          <button onClick={handleCopy} title="コピー" className="p-1.5 rounded text-gray-500 hover:bg-gray-100 hover:text-blue-600 transition-colors"><IconCopy /></button>
+        <div className="flex space-x-2 mt-2 relative"> {/* ★★★ relative を追加 ★★★ */}
+          {/* コピーボタンとツールチップ */}
+          <div className="relative"> {/* ツールチップの位置決め用コンテナ */}
+            <button onClick={handleCopy} title="コピー" className="p-1.5 rounded text-gray-500 hover:bg-gray-100 hover:text-blue-600 transition-colors"><IconCopy /></button>
+            {/* ★★★ ツールチップ要素 ★★★ */}
+            {showTooltip && (
+              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-700 text-white text-xs rounded shadow-lg whitespace-nowrap z-10">
+                コピーしました！
+              </div>
+            )}
+          </div>
           <button onClick={handleShare} title="Xで共有" className="p-1.5 rounded text-gray-500 hover:bg-gray-100 hover:text-black transition-colors"><IconShare /></button>
           <button onClick={handlePreview} title="プレビュー" className="p-1.5 rounded text-gray-500 hover:bg-gray-100 hover:text-green-600 transition-colors"><IconPreview /></button>
           <button onClick={handleDelete} title="削除" className="p-1.5 rounded text-gray-500 hover:bg-gray-100 hover:text-red-600 transition-colors"><IconDelete /></button>
