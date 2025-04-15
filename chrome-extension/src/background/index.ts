@@ -13,6 +13,51 @@ const CONTEXT_MENU_ID = 'createZennQuoteLink';
 const API_ENDPOINT = 'https://zennq.folks-chat.com/api/ogp'; // デプロイ済み URL
 const STORAGE_KEY = 'quoteLinks';
 
+// --- ヘルパー関数: コンテンツスクリプトでモーダルを表示 ---
+const showModalInContentScript = (tabId: number, message: string) => {
+  chrome.scripting.executeScript({
+    target: { tabId: tabId },
+    func: (msg) => {
+      // この関数は Content Script のコンテキストで実行される
+      const displayModal = (text: string): void => {
+        // Remove existing modal if any
+        const existingModal = document.querySelector('.zenn-quotes-notification');
+        if (existingModal) {
+          existingModal.remove();
+        }
+
+        // Create modal element
+        const modal = document.createElement('div');
+        modal.classList.add('zenn-quotes-notification');
+        modal.textContent = text;
+        document.body.appendChild(modal);
+
+        // Trigger fade-in animation
+        setTimeout(() => {
+          modal.classList.add('show');
+        }, 10); // Small delay
+
+        // Set timeout to fade out and remove the modal
+        setTimeout(() => {
+          modal.classList.remove('show');
+          modal.addEventListener('transitionend', () => {
+            modal.remove();
+          }, { once: true });
+        }, 3000); // Display for 3 seconds
+      };
+      displayModal(msg);
+    },
+    args: [message]
+  }).catch((err) => {
+    console.error('Failed to inject script to show modal:', err);
+    // フォールバックとしてネイティブ通知を表示 (任意)
+    chrome.notifications.create({
+      type: 'basic', iconUrl: 'icon-128.png', title: 'ZennQuotes Info', message: message,
+    });
+  });
+};
+
+
 // 拡張機能インストール時またはアップデート時にコンテキストメニューを作成・更新
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({
@@ -27,9 +72,14 @@ chrome.runtime.onInstalled.addListener(() => {
 // コンテキストメニュークリック時の処理
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   console.log('Context menu clicked!');
-  if (info.menuItemId !== CONTEXT_MENU_ID || !tab || !tab.url) {
+  if (info.menuItemId !== CONTEXT_MENU_ID || !tab || !tab.url || !tab.id) { // tab.id のチェックを追加
+    console.error('Invalid tab or context menu ID.');
     return;
   }
+  const targetTabId = tab.id; // tabId を取得
+
+  // --- 開始メッセージをモーダルで表示 ---
+  showModalInContentScript(targetTabId, 'Zennの引用リンクを作成します!');
 
   const selectedText = info.selectionText?.trim();
   const pageUrl = tab.url;
@@ -37,23 +87,18 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   // --- バリデーション ---
   if (!selectedText) {
     console.error('No text selected.');
-    chrome.notifications.create({
-      type: 'basic', iconUrl: 'icon-128.png', title: 'ZennQuotes エラー', message: '引用するテキストが選択されていません。',
-    });
+    showModalInContentScript(targetTabId, '引用するテキストが選択されていません。');
     return;
   }
   if (selectedText.length > 200) {
+    const errorMessage = `文字数が多すぎます(${selectedText.length}/200)。200文字以内で選択してください。`;
     console.error('Selected text is too long (max 200 chars).');
-    chrome.notifications.create({
-      type: 'basic', iconUrl: 'icon-128.png', title: 'ZennQuotes エラー', message: `文字数が多すぎます(${selectedText.length}/200)。200文字以内で選択してください。`,
-    });
+    showModalInContentScript(targetTabId, errorMessage);
     return;
   }
   if (!pageUrl.startsWith('https://zenn.dev/')) {
     console.error('Invalid page URL:', pageUrl);
-    chrome.notifications.create({
-      type: 'basic', iconUrl: 'icon-128.png', title: 'ZennQuotes エラー', message: 'Zennの記事ページ以外では利用できません。',
-    });
+    showModalInContentScript(targetTabId, 'Zennの記事ページ以外では利用できません。');
     return;
   }
 
@@ -75,10 +120,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     console.log('Pending placeholder saved to storage.');
   } catch (storageError) {
     console.error('Error saving placeholder link:', storageError);
-    // ストレージ保存失敗時のエラー通知 (任意)
-    chrome.notifications.create({
-      type: 'basic', iconUrl: 'icon-128.png', title: 'ZennQuotes エラー', message: '一時データの保存に失敗しました。',
-    });
+    showModalInContentScript(targetTabId, '一時データの保存に失敗しました。');
     return; // API 呼び出しに進まない
   }
 
@@ -129,57 +171,47 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     if (tab?.id) {
       const targetTabId = tab.id;
       const notificationMessage = 'Zennの引用リンクをコピーしました!';
-      // OGPカードのURLを構築 (API仕様に合わせて変更が必要な場合があります)
+      // OGPカードのURLを構築
       const quoteLinkUrl = `https://zennq.folks-chat.com/${finalId}`;
 
+      // コンテンツスクリプトでクリップボードコピーとモーダル表示を実行
       chrome.scripting.executeScript({
         target: { tabId: targetTabId },
-        func: (message, urlToCopy) => { // urlToCopy 引数を追加
+        func: (message, urlToCopy) => {
           // この関数は Content Script のコンテキストで実行される
-          const showNotificationModal = (msg: string): void => {
+          const displayModal = (text: string): void => {
             // Remove existing modal if any
             const existingModal = document.querySelector('.zenn-quotes-notification');
             if (existingModal) {
               existingModal.remove();
             }
-
             // Create modal element
             const modal = document.createElement('div');
             modal.classList.add('zenn-quotes-notification');
-            modal.textContent = msg;
+            modal.textContent = text;
             document.body.appendChild(modal);
-
             // Trigger fade-in animation
-            setTimeout(() => {
-              modal.classList.add('show');
-            }, 10); // Small delay
-
+            setTimeout(() => { modal.classList.add('show'); }, 10);
             // Set timeout to fade out and remove the modal
             setTimeout(() => {
               modal.classList.remove('show');
-              modal.addEventListener('transitionend', () => {
-                modal.remove();
-              }, { once: true });
-            }, 3000); // Display for 3 seconds
+              modal.addEventListener('transitionend', () => { modal.remove(); }, { once: true });
+            }, 3000);
           };
 
-          // 1. クリップボードにコピー
+          // クリップボードにコピー
           navigator.clipboard.writeText(urlToCopy).then(() => {
             console.log('Quote link copied to clipboard:', urlToCopy);
-            // コピー成功時はそのままのメッセージでモーダル表示
-            showNotificationModal(message);
+            displayModal(message); // 成功メッセージ表示
           }).catch(err => {
             console.error('Failed to copy quote link to clipboard:', err);
-            // コピー失敗時はメッセージを変更してモーダル表示
-            showNotificationModal(`${message} (コピー失敗)`);
+            displayModal(`${message} (コピー失敗)`); // 失敗メッセージ表示
           });
         },
-        args: [notificationMessage, quoteLinkUrl] // func に渡す引数を修正
-      }).then(() => {
-        console.log('Injected script executed to show notification and copy link.');
+        args: [notificationMessage, quoteLinkUrl]
       }).catch((err) => {
-        console.error('Failed to inject script:', err);
-        // フォールバックとしてネイティブ通知を表示する (任意)
+        console.error('Failed to inject script for copy/notify:', err);
+        // フォールバックとしてネイティブ通知を表示 (任意)
         chrome.notifications.create({
           type: 'basic', iconUrl: 'icon-128.png', title: 'ZennQuotes', message: '引用リンクを作成しました！ (通知表示エラー)',
         });
@@ -187,14 +219,11 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 
     } else {
       console.error('Could not execute script: tab ID not found.');
-      // フォールバックとしてネイティブ通知を表示する (任意)
+      // フォールバックとしてネイティブ通知を表示 (任意)
       chrome.notifications.create({
-        type: 'basic', iconUrl: 'icon-128.png', title: 'ZennQuotes', message: '引用リンクを作成しました！ (通知表示エラー)',
+        type: 'basic', iconUrl: 'icon-128.png', title: 'ZennQuotes', message: '引用リンクをコピーしました！ (通知表示エラー)',
       });
     }
-    // chrome.notifications.create({
-    //   type: 'basic', iconUrl: 'icon-128.png', title: 'ZennQuotes', message: '引用リンクを作成しました！',
-    // });
 
   } catch (error) {
     console.error('Error creating quote link:', error);
@@ -211,15 +240,25 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
 
     let errorMessage = 'リンクの作成中にエラーが発生しました。';
     if (error instanceof Error) {
-      if (error.message.includes('Failed to fetch')) {
+      if (error.message.includes('API request failed')) {
+        // APIからのエラーメッセージを抽出して表示
+        const apiErrorMatch = error.message.match(/API request failed: \d+ .+? - (.+)/);
+        errorMessage = apiErrorMatch && apiErrorMatch[1] ? `APIエラー: ${apiErrorMatch[1]}` : 'APIリクエストに失敗しました。';
+      } else if (error.message.includes('Failed to fetch')) {
         errorMessage = 'バックエンドAPIに接続できませんでした。';
-      } else {
-        errorMessage += `\n${error.message}`;
+      } else if (error.message.includes('Invalid API response')) {
+        errorMessage = 'APIからの応答が無効です。';
       }
     }
-    chrome.notifications.create({
-      type: 'basic', iconUrl: 'icon-128.png', title: 'ZennQuotes エラー', message: errorMessage,
-    });
+    // エラーメッセージをモーダルで表示
+    if (tab?.id) {
+      showModalInContentScript(tab.id, errorMessage);
+    } else {
+      // フォールバック
+      chrome.notifications.create({
+        type: 'basic', iconUrl: 'icon-128.png', title: 'ZennQuotes エラー', message: errorMessage,
+      });
+    }
   }
 });
 
