@@ -79,7 +79,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   const targetTabId = tab.id; // tabId を取得
 
   // --- 開始メッセージをモーダルで表示 ---
-  showModalInContentScript(targetTabId, 'Zennの引用リンクを作成します!');
+  showModalInContentScript(targetTabId, '引用リンクを作成しています ⏳');
 
   const selectedText = info.selectionText?.trim();
   const pageUrl = tab.url;
@@ -170,7 +170,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     // --- 成功通知 & クリップボードコピー (executeScriptでContent Scriptの関数を呼び出す) ---
     if (tab?.id) {
       const targetTabId = tab.id;
-      const notificationMessage = 'Zennの引用リンクをコピーしました!';
+      const notificationMessage = '引用リンクを作成しコピーしました 🎉';
       // OGPカードのURLを構築
       const quoteLinkUrl = `https://zennq.folks-chat.com/${finalId}`;
 
